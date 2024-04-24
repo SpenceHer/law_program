@@ -223,7 +223,7 @@ class SeparatePdfClass:
             # print(f"\nRows on Page {page_number}:\n{self.page_text_rows[page_number]}")
             # print(f"\nWords on Page {page_number}:\n{self.page_text_words[page_number]}")
 
-        self.save_dictionaries()
+
 
     def analyze_page_information(self):
 
@@ -310,7 +310,7 @@ class SeparatePdfClass:
             'font':self.extract_font_styles(processed_image),
             'color_variance':self.calculate_color_variance(image_np),
             'text_blocks':len(texts) - 1,
-            'layout_analysis': self.analyze_graphical_layout(original_image),
+            'layout_analysis': self.analyze_graphical_layout(image_np),
             'word_count':len(filtered_words),
             'rows_of_text_count':len(rows)
         }
@@ -446,9 +446,8 @@ class SeparatePdfClass:
         return centroids[0].astype(int)
 
     # Function to detect graphical layout
-    def analyze_graphical_layout(self, image):
+    def analyze_graphical_layout(self, img_array):
         # Analyzing margins by finding non-white space around the edges
-        img_array = np.array(image)
         vertical_white_space = np.sum(np.all(img_array == 255, axis=(1, 2)))
         horizontal_white_space = np.sum(np.all(img_array == 255, axis=(0, 2)))
         vertical_margin = vertical_white_space / img_array.shape[0]
@@ -469,20 +468,6 @@ class SeparatePdfClass:
                     'font_size': data['font_size'][i] if 'font_size' in data else 'Unknown'
                 })
         return font_styles
-
-
-
-    def save_dictionaries(self):
-        dictionaries = {
-            'page_attributes': self.page_attributes,
-            'page_text': self.page_text,
-            'page_text_rows': self.page_text_rows,
-            'page_text_words': self.page_text_words
-        }
-        file_path = os.path.join(self.save_destination, 'dictionaries.pkl')
-        with open(file_path, 'wb') as file:
-            pickle.dump(dictionaries, file)
-
 
 
 
