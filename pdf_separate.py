@@ -35,7 +35,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import torch
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 
@@ -60,6 +60,8 @@ class SeparatePdfClass:
         # Load pre-trained BERT
         self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.bert_model = BertModel.from_pretrained('bert-base-uncased')
+
+        self.tf_vectorizer = TfidfVectorizer()
 
         credentials = service_account.Credentials.from_service_account_file(
             '/Users/spencersmith/Desktop/CODING/Projects/law/code/cloud_credentials/lunar-tube-421021-a963c429b915.json'
@@ -203,7 +205,7 @@ class SeparatePdfClass:
             #     print(f"Failed to process page {page_number}: {str(e)}")
             #     return page_number, {}, '', [], []
 
-        with ThreadPoolExecutor(max_workers=12) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             results = executor.map(process_page, self.images, range(1, total_pages + 1))
 
         for result in results:
@@ -215,13 +217,17 @@ class SeparatePdfClass:
 
         self.update_status_label("Done processing")
 
-        # for page_number in sorted(self.page_attributes.keys()):
-        #     print(f"\nPage {page_number} Topics:\n{self.page_attributes[page_number]['topics']}")
 
-            # print(f"\nPage {page_number} Attributes:\n{self.page_attributes[page_number]}")
-            # print(f"\nFull Text on Page {page_number}:\n{self.page_text[page_number]}")
-            # print(f"\nRows on Page {page_number}:\n{self.page_text_rows[page_number]}")
-            # print(f"\nWords on Page {page_number}:\n{self.page_text_words[page_number]}")
+
+
+
+
+
+####################################################################
+
+
+
+
 
 
 
@@ -254,12 +260,12 @@ class SeparatePdfClass:
                 self.update_status_label(f"Analyzing page text {page_number} of {total_pages}")
                 page_text = self.page_df.loc[self.page_df['page_num'] == page_number, "page_text"].values[0]
 
-                text_sentiment_poloarity, text_sentiment_subjectivity = self.analyze_sentiment(page_text)
+                text_sentiment_polarity, text_sentiment_subjectivity = self.analyze_sentiment(page_text)
                 entities = self.extract_entities(page_text)
-                prev_page_similarity = self.extract_previous_page_text_diff(page_number)
-                next_page_similarity = self.extract_next_page_text_diff(page_number)
+                prev_page_bert_similarity, prev_page_tf_similarity = self.extract_previous_page_text_diff(page_number)
+                next_page_bert_similarity, next_page_tf_similarity = self.extract_next_page_text_diff(page_number)
 
-                return page_number, text_sentiment_poloarity, text_sentiment_subjectivity, entities, prev_page_similarity, next_page_similarity
+                return page_number, text_sentiment_polarity, text_sentiment_subjectivity, entities, prev_page_bert_similarity, next_page_bert_similarity, prev_page_tf_similarity, next_page_tf_similarity
         
 
 
@@ -272,16 +278,18 @@ class SeparatePdfClass:
             results = executor.map(analyze_page_text, range(1, total_pages + 1))
 
         for result in results:
-            page_number, text_sentiment_poloarity, text_sentiment_subjectivity, entities, prev_page_similarity, next_page_similarity = result
+            page_number, text_sentiment_polarity, text_sentiment_subjectivity, entities, prev_page_bert_similarity, next_page_bert_similarity, prev_page_tf_similarity, next_page_tf_similarity = result
 
-            self.page_df.loc[page_number, "text_sentiment_poloarity"] = text_sentiment_poloarity
+            self.page_df.loc[page_number, "text_sentiment_polarity"] = text_sentiment_polarity
             self.page_df.loc[page_number, "text_sentiment_subjectivity"] = text_sentiment_subjectivity
             self.page_df.loc[page_number, "entities"] = entities
-            self.page_df.loc[page_number, "prev_page_similarity"] = prev_page_similarity
-            self.page_df.loc[page_number, "next_page_similarity"] = next_page_similarity
+            self.page_df.loc[page_number, "prev_page_bert_similarity"] = prev_page_bert_similarity
+            self.page_df.loc[page_number, "next_page_bert_similarity"] = next_page_bert_similarity
+            self.page_df.loc[page_number, "prev_page_tf_similarity"] = prev_page_tf_similarity
+            self.page_df.loc[page_number, "next_page_tf_similarity"] = next_page_tf_similarity
 
-        print(self.page_df)
-        self.page_df.to_csv("/Users/spencersmith/Desktop/CODING/Projects/law/code/page_dataframes/page_df.csv")
+        self.update_status_label("Done analyzing text")
+        self.page_df.to_csv("/Users/spencersmith/Desktop/CODING/Projects/law/page_dataframes/page_dataframe.csv")
 
 
     def preprocess_image(self, img):
@@ -307,15 +315,18 @@ class SeparatePdfClass:
             'image_count': self.count_images(image_np),
             'blurriness':self.calculate_blurriness(image_np),
             'noise':self.calculate_noise(image_np),
-            'font':self.extract_font_styles(processed_image),
             'color_variance':self.calculate_color_variance(image_np),
             'text_blocks':len(texts) - 1,
             'layout_analysis': self.analyze_graphical_layout(image_np),
             'word_count':len(filtered_words),
-            'rows_of_text_count':len(rows)
+            'rows_of_text_count':len(rows),
+            'unique_colors':self.calculate_unique_color_count(image_np)
         }
 
-
+    def calculate_unique_color_count(self, image):
+        pixels = image.reshape(-1, image.shape[2])
+        unique_colors = np.unique(pixels, axis=0)
+        return len(unique_colors)
 
     # Function to encode text into embeddings
     def get_bert_embedding(self, text):
@@ -330,31 +341,57 @@ class SeparatePdfClass:
 
     def extract_previous_page_text_diff(self, page_number):
         if page_number == 1:
-            return 0
+            return 0, 0
         else:
             prev_page_text = self.page_df.loc[page_number-1, "page_text"]
             current_page_text = self.page_df.loc[page_number, "page_text"]
 
+            # TF-IDF Analysis
+            texts = [current_page_text, prev_page_text]
+            self.tf_vectorizer.fit(texts)
+
+            vector1 = self.tf_vectorizer.transform([prev_page_text])
+            vector2 = self.tf_vectorizer.transform([current_page_text])
+
+            cosine_similarities = cosine_similarity(vector1, vector2)
+            tf_similarity = cosine_similarities[0, 0]
+
+
+            # BERT Analysis
             embedding1 = self.get_bert_embedding(prev_page_text)
             embedding2 = self.get_bert_embedding(current_page_text)
 
-            similarity = 1 - cosine(embedding1.numpy(), embedding2.numpy())
+            bert_similarity = 1 - cosine(embedding1.numpy(), embedding2.numpy())
 
-            return round(similarity, 4)
+            return round(bert_similarity, 4), round(tf_similarity, 4)
+
 
     def extract_next_page_text_diff(self, page_number):
         if page_number == len(self.page_df):
-            return 0
+            return 0, 0
         else:
             next_page_text = self.page_df.loc[page_number+1, "page_text"]
             current_page_text = self.page_df.loc[page_number, "page_text"]
 
+            # TF-IDF Analysis
+            texts = [current_page_text, next_page_text]
+            self.tf_vectorizer.fit(texts)
+
+            vector1 = self.tf_vectorizer.transform([next_page_text])
+            vector2 = self.tf_vectorizer.transform([current_page_text])
+
+            cosine_similarities = cosine_similarity(vector1, vector2)
+            tf_similarity = cosine_similarities[0, 0]
+
+
+            # BERT Analysis
             embedding1 = self.get_bert_embedding(next_page_text)
             embedding2 = self.get_bert_embedding(current_page_text)
 
-            similarity = 1 - cosine(embedding1.numpy(), embedding2.numpy())
+            bert_similarity = 1 - cosine(embedding1.numpy(), embedding2.numpy())
 
-            return round(similarity, 4)
+            return round(bert_similarity, 4), round(tf_similarity, 4)
+
 
 
     def extract_entities(self, text):
@@ -395,6 +432,7 @@ class SeparatePdfClass:
     def calculate_blurriness(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         noise_estimate = cv2.Laplacian(gray, cv2.CV_64F).var()
+        return noise_estimate
 
 
     def get_page_size(self, image):
@@ -454,20 +492,6 @@ class SeparatePdfClass:
         horizontal_margin = horizontal_white_space / img_array.shape[1]
         return {'vertical_margin_ratio': vertical_margin, 'horizontal_margin_ratio': horizontal_margin}
 
-    def extract_font_styles(self, image):
-        custom_config = r"--oem 1 --psm 6 outputbase digits"
-        data = pytesseract.image_to_data(image, config=custom_config, output_type=pytesseract.Output.DICT)
-        
-        font_styles = []
-        n_boxes = len(data['text'])
-        for i in range(n_boxes):
-            if int(data['conf'][i]) > 60:  # Confidence greater than 60%
-                font_styles.append({
-                    'text': data['text'][i],
-                    'font_name': data['font_name'][i] if 'font_name' in data else 'Unknown',
-                    'font_size': data['font_size'][i] if 'font_size' in data else 'Unknown'
-                })
-        return font_styles
 
 
 
