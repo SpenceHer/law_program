@@ -1,11 +1,9 @@
-# Import necessary modules
-from gui import GUI
+from run_process import RunProcess
 
 def main():
-    # Create an instance of the main application GUI class
-    app = GUI()
-    # Start the application
-    app.run()
+
+    RunProcess()
+
 
 # Check if the script is running directly (not imported)
 if __name__ == "__main__":
