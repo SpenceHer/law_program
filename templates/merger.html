@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}PDF Merger{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        PDF Merger
+    </div>
+    <div class="card-body">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form id="upload-form" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <input type="file" class="form-control-file d-none" id="files" name="files" multiple>
+                <div id="drop-area" class="drop-area border border-primary p-4 text-center" onclick="document.getElementById('files').click()">
+                    <p>Click here or drag and drop PDF files</p>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload and Merge</button>
+            <button type="button" id="clear-files" class="btn btn-secondary">Clear Files</button>
+        </form>
+        <div id="file-list" class="mt-3">
+            <h5>Selected Files:</h5>
+            <ul id="files-list" class="list-group"></ul>
+        </div>
+    </div>
+</div>
+<script>
+    const dropArea = document.getElementById('drop-area');
+    const filesInput = document.getElementById('files');
+    const filesList = document.getElementById('files-list');
+    const clearFilesButton = document.getElementById('clear-files');
+    let filesArray = [];
+
+    dropArea.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropArea.classList.add('bg-light');
+    });
+
+    dropArea.addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropArea.classList.remove('bg-light');
+    });
+
+    dropArea.addEventListener('drop', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropArea.classList.remove('bg-light');
+        const files = Array.from(event.dataTransfer.files);
+        filesArray = filesArray.concat(files);
+        updateFileList();
+    });
+
+    filesInput.addEventListener('change', (event) => {
+        const files = Array.from(event.target.files);
+        filesArray = filesArray.concat(files);
+        updateFileList();
+    });
+
+    clearFilesButton.addEventListener('click', () => {
+        filesArray = [];
+        updateFileList();
+    });
+
+    function updateFileList() {
+        filesList.innerHTML = '';
+        filesArray.forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.draggable = true;
+            li.innerHTML = `
+                ${file.name}
+                <div>
+                    <button class="btn btn-sm btn-danger" onclick="removeFile(${index})">Remove</button>
+                    <button class="btn btn-sm btn-secondary" onclick="moveUp(${index})">Up</button>
+                    <button class="btn btn-sm btn-secondary" onclick="moveDown(${index})">Down</button>
+                </div>
+            `;
+            li.addEventListener('dragstart', (event) => {
+                event.dataTransfer.setData('text/plain', index);
+            });
+            li.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                li.classList.add('drag-over');
+            });
+            li.addEventListener('dragleave', () => {
+                li.classList.remove('drag-over');
+            });
+            li.addEventListener('drop', (event) => {
+                event.preventDefault();
+                const draggedIndex = event.dataTransfer.getData('text/plain');
+                moveFile(draggedIndex, index);
+                li.classList.remove('drag-over');
+            });
+            filesList.appendChild(li);
+        });
+        // Update the hidden file input
+        filesInput.files = createFileList(filesArray);
+    }
+
+    function createFileList(files) {
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => dataTransfer.items.add(file));
+        return dataTransfer.files;
+    }
+
+    function removeFile(index) {
+        filesArray.splice(index, 1);
+        updateFileList();
+    }
+
+    function moveUp(index) {
+        if (index > 0) {
+            [filesArray[index], filesArray[index - 1]] = [filesArray[index - 1], filesArray[index]];
+            updateFileList();
+        }
+    }
+
+    function moveDown(index) {
+        if (index < filesArray.length - 1) {
+            [filesArray[index], filesArray[index + 1]] = [filesArray[index + 1], filesArray[index]];
+            updateFileList();
+        }
+    }
+
+    function moveFile(fromIndex, toIndex) {
+        const movedFile = filesArray.splice(fromIndex, 1)[0];
+        filesArray.splice(toIndex, 0, movedFile);
+        updateFileList();
+    }
+</script>
+<style>
+    .drop-area {
+        transition: background-color 0.3s, border-color 0.3s;
+    }
+    .drop-area:hover {
+        background-color: #f0f0f0;
+        border-color: #007bff;
+        cursor: pointer;
+    }
+    .drop-area:active {
+        background-color: #e0e0e0;
+        border-color: #0056b3;
+    }
+    .drag-over {
+        background-color: #d0d0d0;
+    }
+</style>
+{% endblock %}
