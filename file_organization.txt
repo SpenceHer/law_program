@@ -1,0 +1,33 @@
+my_flask_app/
+│
+├── app.py
+├── templates/
+│   ├── base.html
+│   ├── index.html
+│   ├── merger.html
+│   ├── passcode.html
+│   ├── separator.html
+│   └── splitter.html
+├── static/
+│   ├── css/
+│   │   └── styles.css
+│   ├── split_pdfs/
+│   │   └──
+│   ├── uploads/
+│   │   └──
+│   └── js/
+│       └── scripts.js
+└── pdf_operations/
+    ├── __init__.py
+    ├── pdf_separator/
+    │   ├── __init__.py
+    │   ├── separate_main.py
+    │   ├── pdf_processor.py
+    │   ├── config.py
+    │   └── run_process.py
+    ├── pdf_merger/
+    │   ├── __init__.py
+    │   ├── merge_pdfs_main.py
+    └── pdf_splitter/
+        ├── __init__.py
+        └── split_pdf.py
