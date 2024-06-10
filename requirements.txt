@@ -1,0 +1,15 @@
+Flask
+PyPDF2
+google-auth
+google-cloud-vision
+pdf2image
+pandas
+PyMuPDF
+spacy
+transformers
+torch
+scikit-learn
+numpy
+nltk
+joblib
+
