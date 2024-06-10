@@ -5,7 +5,7 @@ import os
 import io
 from zipfile import ZipFile
 import logging
-from pdf_operations.pdf_separator import separate_main  # Ensure this imports the correct main function
+from pdf_operations.pdf_separator import run_process  # Ensure this imports the correct main function
 from pdf_operations.pdf_merger import merge_pdfs_main  # Import the merge_pdfs function
 from pdf_operations.pdf_splitter import split_pdf  # Import the split_pdf function
 
@@ -54,16 +54,21 @@ def separator():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             uploaded_file.save(file_path)
             try:
-                output_files = separate_main.main(file_path)  # Ensure main is correctly called
+                output_files = run_process.RunProcess(file_path).output_files
                 zip_buffer = io.BytesIO()
                 with ZipFile(zip_buffer, 'w') as zip_file:
                     for file in output_files:
                         zip_file.write(file, os.path.basename(file))
                 zip_buffer.seek(0)
 
-                # Delete the split PDFs
-                for file in output_files:
-                    os.remove(file)
+                # Delete split PDF folder
+                if output_files:
+                    directory_path = os.path.dirname(output_files[0])
+
+                    # Delete the folder and its contents
+                    for file in os.listdir(directory_path):
+                        os.remove(os.path.join(directory_path, file))
+                    os.rmdir(directory_path)
 
                 # Delete the uploaded PDF
                 os.remove(file_path)
