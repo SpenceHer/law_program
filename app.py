@@ -16,7 +16,7 @@ nltk.download('wordnet')
 
 app = Flask(__name__)
 
-Redirect to HTTPS if the request is 'http://
+# Redirect to HTTPS if the request is 'http://
 @app.before_request
 def before_request():
     if not request.is_secure:
