@@ -19,16 +19,11 @@ import numpy as np
 from multiprocessing import Manager, Value, Lock
 from collections import Counter
 import string
-import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import joblib
 from PyPDF2 import PdfReader, PdfWriter
 
-
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
 
 ################################################################################################################
 ################################################################################################################
@@ -44,6 +39,8 @@ class ProcessPDF:
         self.nlp = spacy.load("en_core_web_sm")
         self.stop_words = set(stopwords.words('english'))
         self.lemmatizer = WordNetLemmatizer()
+
+
 
     def process_pdf(self):
         with fitz.open(self.pdf_path) as doc:
@@ -710,7 +707,6 @@ class PageComparison:
 class PDFSeparation:
     def __init__(self, pdf_path, page_df):
         self.BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        print(os.getcwd())
         self.pdf_path = pdf_path
         self.page_df = page_df
         self.features = [
