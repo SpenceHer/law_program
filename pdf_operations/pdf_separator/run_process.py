@@ -55,3 +55,4 @@ class RunProcess:
         print(f"Overall pages per minute: {total_pages / overall_elapsed_time}")
 
         return output_files
+
