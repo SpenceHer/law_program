@@ -16,12 +16,12 @@ nltk.download('wordnet')
 
 app = Flask(__name__)
 
-# Redirect to HTTPS if the request is 'http://
-# @app.before_request
-# def before_request():
-#     if not request.is_secure:
-#         url = request.url.replace("http://", "https://", 1)
-#         return redirect(url, code=301)
+Redirect to HTTPS if the request is 'http://
+@app.before_request
+def before_request():
+    if not request.is_secure:
+        url = request.url.replace("http://", "https://", 1)
+        return redirect(url, code=301)
 
 
 app.config['UPLOAD_FOLDER'] = 'static/uploads/'
