@@ -8,13 +8,25 @@ import logging
 from pdf_operations.pdf_separator import run_process  # Ensure this imports the correct main function
 from pdf_operations.pdf_merger import merge_pdfs_main  # Import the merge_pdfs function
 from pdf_operations.pdf_splitter import split_pdf  # Import the split_pdf function
+import nltk
+
+nltk.download('stopwords')
+nltk.download('wordnet')
+
 
 app = Flask(__name__)
+
+# Redirect to HTTPS if the request is 'http://
+@app.before_request
+def before_request():
+    if not request.is_secure:
+        url = request.url.replace("http://", "https://", 1)
+        return redirect(url, code=301)
+
+
 app.config['UPLOAD_FOLDER'] = 'static/uploads/'
 app.secret_key = os.environ.get('SECRET_KEY')  # Use environment variable for secret key, with a default for testing
 PASSCODE = os.environ.get('PASSCODE')  # Use environment variable for passcode, with a default for testing
-print(f'Secret Key: {app.secret_key}')
-print(f'Passcode: {PASSCODE}')
 
 logging.basicConfig(level=logging.INFO)
 
@@ -160,4 +172,4 @@ def splitter():
     return render_template('splitter.html')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5010)
